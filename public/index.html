@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BreathBreak — a breathing coach for screen workers</title>
+  <meta name="description" content="BreathBreak measures your breathing, pulse and blink rate from your webcam — entirely on your computer — and guides a one-minute box-breathing break.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">BreathBreak</span>
+    </div>
+    <p class="brand-tagline">A breathing coach for screen workers</p>
+  </header>
+
+  <main class="app" id="app">
+
+    <!-- ============ SCREEN 1: CONSENT (state: idle) ============ -->
+    <section class="screen" id="screen-consent" aria-label="Before we start">
+      <div class="card">
+        <h1>Take a breather that starts with how you're actually doing</h1>
+        <p class="lead">
+          BreathBreak uses your webcam to measure three things for one minute:
+          your <strong>breathing rate</strong>, your <strong>pulse</strong>, and how
+          often you <strong>blink</strong>. Then it guides you through a one-minute
+          box-breathing exercise — and shows you the difference.
+        </p>
+
+        <h2>What the camera measures</h2>
+        <ul class="measure-list">
+          <li><strong>Breathing</strong> — breaths per minute, from the small motion of your chest and shoulders.</li>
+          <li><strong>Pulse</strong> — beats per minute, from tiny colour changes in your skin.</li>
+          <li><strong>Blinks</strong> — blinks per minute, from your eyes. Screen work makes most of us blink far less than we should.</li>
+        </ul>
+
+        <h2>What happens to the data</h2>
+        <ul class="privacy-list">
+          <li>Everything is processed <strong>on this computer</strong>. Nothing is stored, and nothing is sent anywhere.</li>
+          <li>The camera starts only when you press <strong>Start measuring</strong> — never before.</li>
+          <li>No camera preview is shown, and no video ever leaves this page's server process.</li>
+          <li>The Presage SmartSpectra SDK contacts Presage only to check the API key. Telemetry is off.</li>
+        </ul>
+
+        <p class="how-it-works">
+          <strong>How it works:</strong> 60 seconds of measuring, then an optional one-minute breather.
+        </p>
+
+        <button class="btn btn-primary" id="btn-start" type="button">Start measuring</button>
+        <p class="consent-note">By pressing Start measuring you agree to use your camera for this session only.</p>
+        <p class="connection-note" id="connection-note" hidden>Connecting to the local server…</p>
+      </div>
+    </section>
+
+    <!-- ============ SCREEN 2: LIVE DASHBOARD (states: measuring / ready) ============ -->
+    <section class="screen" id="screen-dashboard" hidden aria-label="Live measurements">
+      <div class="session-bar">
+        <span class="session-status" id="session-status">Measuring…</span>
+        <span class="session-timer" id="session-timer">0:00</span>
+      </div>
+
+      <!-- Validation hint bar -->
+      <div class="hint-bar hint-ok" id="hint-bar" role="status">
+        <span class="hint-dot" aria-hidden="true"></span>
+        <span id="hint-text">Signal looks good</span>
+      </div>
+
+      <div class="tiles">
+        <div class="tile">
+          <h2>Breathing</h2>
+          <p class="metric-value" id="metric-breathing">—</p>
+          <p class="metric-unit">breaths / min</p>
+          <p class="metric-note" id="note-breathing">warming up…</p>
+        </div>
+        <div class="tile">
+          <h2>Pulse</h2>
+          <p class="metric-value" id="metric-pulse">—</p>
+          <p class="metric-unit">beats / min</p>
+          <p class="metric-note" id="note-pulse">warming up…</p>
+        </div>
+        <div class="tile">
+          <h2>Blinks</h2>
+          <p class="metric-value" id="metric-blinks">—</p>
+          <p class="metric-unit">blinks / min</p>
+          <p class="metric-note" id="note-blinks">warming up…</p>
+        </div>
+      </div>
+
+      <!-- Breathing trace sparkline -->
+      <div class="card trace-card">
+        <h2>Breathing trace</h2>
+        <canvas id="breath-trace" width="640" height="120" aria-label="Live breathing trace"></canvas>
+        <p class="trace-note" id="trace-note">Waiting for the breathing signal…</p>
+      </div>
+
+      <!-- ============ SCREEN 3: NUDGE CARD (state: ready) ============ -->
+      <div class="card nudge-card" id="nudge-card" hidden>
+        <h2 id="nudge-heading">Your body could use a breather</h2>
+        <ul class="nudge-reasons" id="nudge-reasons"></ul>
+        <p class="nudge-good" id="nudge-good" hidden>You're in a good rhythm.</p>
+        <button class="btn btn-primary" id="btn-exercise" type="button">Start a one-minute breather</button>
+        <button class="btn btn-ghost" id="btn-exercise-anyway" type="button" hidden>Take a breather anyway</button>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-secondary" id="btn-stop-dashboard" type="button">Stop</button>
+      </div>
+    </section>
+
+    <!-- ============ SCREEN 4: EXERCISE (states: exercising / settling) ============ -->
+    <section class="screen" id="screen-exercise" hidden aria-label="Breathing exercise">
+      <div class="exercise-top">
+        <span class="exercise-cycle" id="exercise-cycle">Cycle 1 of 4</span>
+        <span class="exercise-remaining" id="exercise-remaining">64s remaining</span>
+      </div>
+
+      <div class="pacer-wrap" id="pacer-wrap">
+        <div class="pacer-ring" id="pacer-ring">
+          <div class="pacer-circle" id="pacer-circle"></div>
+        </div>
+        <p class="pacer-cue" id="pacer-cue">Breathe in…</p>
+        <p class="pacer-phase" id="pacer-phase">Inhale · 4 seconds</p>
+      </div>
+
+      <div class="exercise-live" id="exercise-live">
+        <span>Live breathing rate:</span>
+        <strong id="exercise-breathing">—</strong>
+        <span>breaths / min</span>
+      </div>
+
+      <!-- Settling state replaces the pacer -->
+      <div class="settling" id="settling" hidden>
+        <p class="settling-text">Nice — measuring how your breathing settles…</p>
+        <p class="settling-countdown" id="settling-countdown"></p>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-secondary" id="btn-stop-exercise" type="button">Stop</button>
+      </div>
+    </section>
+
+    <!-- ============ SCREEN 5: RESULT (state: done) ============ -->
+    <section class="screen" id="screen-result" hidden aria-label="Your result">
+      <div class="card">
+        <h1>Here's what changed</h1>
+        <p class="summary-line" id="summary-line"></p>
+
+        <table class="result-table">
+          <thead>
+            <tr>
+              <th scope="col">Measure</th>
+              <th scope="col">Before</th>
+              <th scope="col">After</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Breathing <span class="table-unit">(breaths / min)</span></th>
+              <td id="result-breathing-before">—</td>
+              <td id="result-breathing-after">—</td>
+            </tr>
+            <tr>
+              <th scope="row">Blinks <span class="table-unit">(blinks / min)</span></th>
+              <td id="result-blinks-before">—</td>
+              <td id="result-blinks-after">—</td>
+            </tr>
+            <tr>
+              <th scope="row">Pulse <span class="table-unit">(beats / min)</span></th>
+              <td id="result-pulse-before">—</td>
+              <td id="result-pulse-after">—</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="result-note" id="result-note"></p>
+
+        <div class="actions result-actions">
+          <button class="btn btn-primary" id="btn-measure-again" type="button">Measure again</button>
+          <button class="btn btn-secondary" id="btn-stop-result" type="button">Stop</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SCREEN 6: ERROR (state: error) ============ -->
+    <section class="screen" id="screen-error" hidden aria-label="Something went wrong">
+      <div class="card error-card">
+        <h1>Something went wrong</h1>
+        <p id="error-message">We couldn't start the measurement. Please try again.</p>
+        <button class="btn btn-primary" id="btn-try-again" type="button">Try again</button>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>For general wellness and informational purposes only. Not for medical diagnosis or treatment.</p>
+    <p class="footer-brand">BreathBreak · by AheadKit · powered by Presage SmartSpectra</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

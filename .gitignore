@@ -1,0 +1,7 @@
+node_modules/
+.env
+# Submission working files — kept out of the public repo.
+DEV-POST-DRAFT.md
+DEMO-SCRIPT.md
+LIVE-TEST-PLAN.md
+*.tmp.mjs
